@@ -1,0 +1,51 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: banking-api
+
+  data:
+    mongodb:
+      uri: mongodb://localhost:27016/banking_db
+
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 3000ms
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: your-mock-email@example.com
+    password: your-mock-password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  cache:
+    type: redis
+
+jwt:
+  secret: "ReplaceThisWithA256BitSecretKeyForJWTSigningPurposesOnly!"
+  expiration-ms: 3600000   # 1 hour, configurable per senior's answer
+
+transaction:
+  cleanup:
+    cron: "0 0 0 * * *"     # daily at midnight
+    retention-days: 3
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    root: INFO
+    com.bank.api: DEBUG
+    org.springframework.security: DEBUG
