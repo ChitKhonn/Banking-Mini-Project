@@ -125,10 +125,3 @@ src/main/java/com/bank/api/
 └── service/           # AuthService, UserService, AccountService, TransactionService, EmailService
 ```
 
-## Not Yet Implemented (next steps)
-
-- Unit / integration tests (Testcontainers recommended for Mongo replica set + Redis)
-- Idempotency keys for Transfer (protect against duplicate retries)
-- Transaction reversal endpoint (status → `REVERSED`, both parties notified — schema already supports this via `TransactionStatus.REVERSED`)
-- Pagination on `List All Customers` / `List Accounts by Customer` / transaction history
-- Rate limiting on `/auth/login`
