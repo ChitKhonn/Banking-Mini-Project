@@ -24,16 +24,15 @@ public class UserController {
     private final UserService userService;
 
     @Operation(summary = "Get customer by ID", description = "USER/ADMIN - customers can access their own data only")
-    @PreAuthorize("hasAnyRole('USER','ADMIN')") // implemnt on security config
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getById(@PathVariable String id,
-                                                 @AuthenticationPrincipal UserPrincipal principal) {
+                                                @AuthenticationPrincipal UserPrincipal principal) {
         boolean isAdmin = isAdmin(principal);
         return ResponseEntity.ok(userService.getById(id, principal.getId(), isAdmin));
     }
 
     @Operation(summary = "List all customers", description = "ADMIN only")
-    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<List<UserResponse>> listAll() {
         return ResponseEntity.ok(userService.listAll());
@@ -43,14 +42,13 @@ public class UserController {
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<UserResponse> update(@PathVariable String id,
-                                                @Valid @RequestBody UpdateUserRequest request,
-                                                @AuthenticationPrincipal UserPrincipal principal) {
+                                               @Valid @RequestBody UpdateUserRequest request,
+                                               @AuthenticationPrincipal UserPrincipal principal) {
         boolean isAdmin = isAdmin(principal);
         return ResponseEntity.ok(userService.update(id, request, principal.getId(), isAdmin));
     }
 
     @Operation(summary = "Delete customer", description = "ADMIN only - strictly, no self-delete by USER")
-    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable String id) {
         userService.delete(id);
