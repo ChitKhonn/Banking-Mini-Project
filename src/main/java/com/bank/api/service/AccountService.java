@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -47,22 +48,15 @@ public class AccountService {
     }
 
     @Cacheable(value = RedisConfig.ACCOUNTS_CACHE, key = "#accountId")
-    public AccountResponse getById(String accountId, String requesterId, boolean isAdmin) {
+    @PostAuthorize("returnObject.userId == authentication.principal.id or hasRole('ADMIN')")
+    public AccountResponse getById(String accountId) {
         Account account = findOrThrow(accountId);
-
-        if (!isAdmin && !account.getUserId().equals(requesterId)) {
-            throw new UnauthorizedAccessException("Cannot access another user's account without ADMIN rights");
-        }
-
         return toResponse(account);
     }
 
     @Cacheable(value = RedisConfig.ACCOUNTS_BY_USER_CACHE, key = "#targetUserId")
-    public List<AccountResponse> listByUser(String targetUserId, String requesterId, boolean isAdmin) {
-        if (!isAdmin && !targetUserId.equals(requesterId)) {
-            throw new UnauthorizedAccessException("Cannot list another user's accounts without ADMIN rights");
-        }
-
+    @PostAuthorize("hasRole('ADMIN') or #targetUserId == authentication.principal.id")
+    public List<AccountResponse> listByUser(String targetUserId) {
         return accountRepository.findByUserId(targetUserId).stream()
                 .map(this::toResponse)
                 .toList();
@@ -71,13 +65,9 @@ public class AccountService {
     @Caching(evict = {
             @CacheEvict(value = RedisConfig.ACCOUNTS_CACHE, key = "#accountId"),
     })
-    public AccountResponse updateStatus(String accountId, AccountStatus newStatus, String requesterId, boolean isAdmin) {
+    @PostAuthorize("returnObject.userId == authentication.principal.id or hasRole('ADMIN')")
+    public AccountResponse updateStatus(String accountId, AccountStatus newStatus) {
         Account account = findOrThrow(accountId);
-
-        if (!isAdmin && !account.getUserId().equals(requesterId)) {
-            throw new UnauthorizedAccessException("Cannot update another user's account without ADMIN rights");
-        }
-
         account.setStatus(newStatus);
         Account saved = accountRepository.save(account);
         return toResponse(saved);

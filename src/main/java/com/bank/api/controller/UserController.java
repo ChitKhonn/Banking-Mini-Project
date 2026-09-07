@@ -2,7 +2,6 @@ package com.bank.api.controller;
 
 import com.bank.api.dto.request.UpdateUserRequest;
 import com.bank.api.dto.response.UserResponse;
-import com.bank.api.security.UserPrincipal;
 import com.bank.api.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -10,7 +9,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,10 +24,8 @@ public class UserController {
     @Operation(summary = "Get customer by ID", description = "USER/ADMIN - customers can access their own data only")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponse> getById(@PathVariable String id,
-                                                @AuthenticationPrincipal UserPrincipal principal) {
-        boolean isAdmin = isAdmin(principal);
-        return ResponseEntity.ok(userService.getById(id, principal.getId(), isAdmin));
+    public ResponseEntity<UserResponse> getById(@PathVariable String id) {
+        return ResponseEntity.ok(userService.getById(id));
     }
 
     @Operation(summary = "List all customers", description = "ADMIN only")
@@ -42,10 +38,8 @@ public class UserController {
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<UserResponse> update(@PathVariable String id,
-                                               @Valid @RequestBody UpdateUserRequest request,
-                                               @AuthenticationPrincipal UserPrincipal principal) {
-        boolean isAdmin = isAdmin(principal);
-        return ResponseEntity.ok(userService.update(id, request, principal.getId(), isAdmin));
+                                               @Valid @RequestBody UpdateUserRequest request) {
+        return ResponseEntity.ok(userService.update(id, request));
     }
 
     @Operation(summary = "Delete customer", description = "ADMIN only - strictly, no self-delete by USER")
@@ -53,9 +47,5 @@ public class UserController {
     public ResponseEntity<Void> delete(@PathVariable String id) {
         userService.delete(id);
         return ResponseEntity.noContent().build();
-    }
-
-    private boolean isAdmin(UserPrincipal principal) {
-        return principal.getUser().getRole() == com.bank.api.enums.Role.ADMIN;
     }
 }

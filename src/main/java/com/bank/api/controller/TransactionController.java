@@ -60,7 +60,6 @@ public class TransactionController {
     @GetMapping("/accounts/{accountId}/transactions")
     public ResponseEntity<List<TransactionResponse>> getAccountTransactions(@PathVariable String accountId,
                                                                               @AuthenticationPrincipal UserPrincipal principal) {
-        boolean isAdmin = principal.getUser().getRole() == com.bank.api.enums.Role.ADMIN;
-        return ResponseEntity.ok(transactionService.getAccountTransactions(accountId, principal.getId(), isAdmin));
+        return ResponseEntity.ok(transactionService.getAccountTransactions(accountId, principal.getId()));
     }
 }

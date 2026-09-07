@@ -35,26 +35,23 @@ public class AccountController {
     @Operation(summary = "Get account by ID", description = "USER/ADMIN - cannot access others' account without ADMIN rights")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @GetMapping("/{id}")
-    public ResponseEntity<AccountResponse> getById(@PathVariable String id,
-                                                   @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(accountService.getById(id, principal.getId(), isAdmin(principal)));
+    public ResponseEntity<AccountResponse> getById(@PathVariable String id) {
+        return ResponseEntity.ok(accountService.getById(id));
     }
 
     @Operation(summary = "List accounts by customer", description = "USER/ADMIN - cannot list others' accounts without ADMIN rights")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @GetMapping("/customer/{userId}")
-    public ResponseEntity<List<AccountResponse>> listByCustomer(@PathVariable String userId,
-                                                                @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(accountService.listByUser(userId, principal.getId(), isAdmin(principal)));
+    public ResponseEntity<List<AccountResponse>> listByCustomer(@PathVariable String userId) {
+        return ResponseEntity.ok(accountService.listByUser(userId));
     }
 
     @Operation(summary = "Update account status", description = "USER/ADMIN - cannot update others' accounts without ADMIN rights")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<AccountResponse> updateStatus(@PathVariable String id,
-                                                        @RequestParam AccountStatus status,
-                                                        @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(accountService.updateStatus(id, status, principal.getId(), isAdmin(principal)));
+                                                        @RequestParam AccountStatus status) {
+        return ResponseEntity.ok(accountService.updateStatus(id, status));
     }
 
     @Operation(summary = "Delete account", description = "ADMIN only")
@@ -64,7 +61,4 @@ public class AccountController {
         return ResponseEntity.noContent().build();
     }
 
-    private boolean isAdmin(UserPrincipal principal) {
-        return principal.getUser().getRole() == com.bank.api.enums.Role.ADMIN;
-    }
 }
