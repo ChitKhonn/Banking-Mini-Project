@@ -6,6 +6,7 @@ import com.bank.api.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -21,7 +22,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // enables @PreAuthorize on controller methods
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -54,16 +55,21 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex
-                        // 401 - not authenticated at all (missing/invalid/expired JWT)
-                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                        // 403 - authenticated, but wrong role for this endpoint
-                        .accessDeniedHandler(jwtAccessDeniedHandler)
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)   // 401 - not authenticated
+                        .accessDeniedHandler(jwtAccessDeniedHandler)              // 403 - wrong role
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // public endpoints
-                        .requestMatchers("/api/v1/auth/login").permitAll()
+                        // ---- Public ----
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                        // everything else requires JWT ("Authenticated?" check in the diagram)
+
+                        // ---- ADMIN-only, no ownership logic involved ----
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/register").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/customers").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/customers/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/accounts").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/accounts/**").hasRole("ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())

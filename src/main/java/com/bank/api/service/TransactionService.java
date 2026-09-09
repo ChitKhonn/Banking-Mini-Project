@@ -7,6 +7,8 @@ import com.bank.api.entity.Transaction;
 import com.bank.api.entity.User;
 import com.bank.api.enums.TransactionStatus;
 import com.bank.api.enums.TransactionType;
+import com.bank.api.exception.AccountNotFoundException;
+import com.bank.api.exception.ConcurrentUpdateException;
 import com.bank.api.exception.InsufficientBalanceException;
 import com.bank.api.exception.ResourceNotFoundException;
 import com.bank.api.exception.UnauthorizedAccessException;
@@ -19,7 +21,9 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
+import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,6 +62,11 @@ public class TransactionService {
         return toResponse(savedTxn);
     }
 
+    @Recover
+    public TransactionResponse recover(OptimisticLockingFailureException ex, String accountId, BigDecimal amount, String requesterId) {
+        throw new ConcurrentUpdateException("Account was updated concurrently, please retry");
+    }
+
     @Retryable(retryFor = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @CacheEvict(value = RedisConfig.ACCOUNTS_CACHE, key = "#accountId")
     public TransactionResponse withdraw(String accountId, BigDecimal amount, String requesterId) {
@@ -94,7 +103,7 @@ public class TransactionService {
     public TransactionResponse transfer(String fromAccountId, String toAccountId, BigDecimal amount, String requesterId) {
         Account fromAccount = getOwnedAccount(fromAccountId, requesterId, "Cannot deduct money from another user's account");
         Account toAccount = accountRepository.findById(toAccountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Destination account not found: " + toAccountId));
+                .orElseThrow(() -> new AccountNotFoundException("Destination account not found: " + toAccountId));
 
         if (fromAccount.getBalance().compareTo(amount) < 0) {
             throw new InsufficientBalanceException("Insufficient balance for transfer");
@@ -126,12 +135,23 @@ public class TransactionService {
         return toResponse(savedTxn);
     }
 
-    @Cacheable(value = RedisConfig.TRANSACTIONS_CACHE, key = "#accountId")
-    public List<TransactionResponse> getAccountTransactions(String accountId, String requesterId, boolean isAdmin) {
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + accountId));
+    @Recover
+    public TransactionResponse recover(OptimisticLockingFailureException ex,
+                                      String fromAccountId,
+                                      String toAccountId,
+                                      BigDecimal amount,
+                                      String requesterId) {
+        throw new ConcurrentUpdateException("Account was updated concurrently, please retry");
+    }
 
-        if (!isAdmin && !account.getUserId().equals(requesterId)) {
+    @Cacheable(value = RedisConfig.TRANSACTIONS_CACHE, key = "#accountId")
+    @PostAuthorize("hasRole('ADMIN') or #requesterId == authentication.principal.id")
+    public List<TransactionResponse> getAccountTransactions(String accountId, String requesterId) {
+
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new AccountNotFoundException("Account not found: " + accountId));
+
+        if (!account.getUserId().equals(requesterId)) {
             throw new UnauthorizedAccessException("Cannot access another user's transactions without ADMIN rights");
         }
 
@@ -142,7 +162,7 @@ public class TransactionService {
 
     private Account getOwnedAccount(String accountId, String requesterId, String forbiddenMessage) {
         Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + accountId));
+                .orElseThrow(() -> new AccountNotFoundException("Account not found: " + accountId));
 
         if (!account.getUserId().equals(requesterId)) {
             throw new UnauthorizedAccessException(forbiddenMessage);
