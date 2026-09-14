@@ -10,5 +10,5 @@ public interface AccountRepository extends MongoRepository<Account, String> {
 
     List<Account> findByUserId(String userId);
 
-    long countByUserId(String userId);
+    boolean existsByUserId(String userId);
 }

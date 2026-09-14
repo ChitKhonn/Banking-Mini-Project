@@ -2,6 +2,8 @@ package com.bank.api.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -44,6 +46,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), req);
     }
 
+    @ExceptionHandler(DuplicateAccountException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateAccount(DuplicateAccountException ex, HttpServletRequest req) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), req);
+    }
+
     @ExceptionHandler(EmailDuplicateException.class)
     public ResponseEntity<ErrorResponse> handleEmailDuplicate(EmailDuplicateException ex, HttpServletRequest req) {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), req);
@@ -72,6 +79,28 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(OptimisticLockingFailureException.class)
     public ResponseEntity<ErrorResponse> handleOptimisticLock(OptimisticLockingFailureException ex, HttpServletRequest req) {
         return build(HttpStatus.BAD_REQUEST, "Account was updated concurrently, please retry", req);
+    }
+
+    @ExceptionHandler(DuplicateKeyException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateKey(DuplicateKeyException ex, HttpServletRequest req) {
+        return build(HttpStatus.CONFLICT, "Duplicate resource: a record with the same unique field already exists", req);
+    }
+
+    @ExceptionHandler({
+            com.mongodb.MongoTimeoutException.class,
+            com.mongodb.MongoSocketException.class,
+            org.springframework.data.mongodb.UncategorizedMongoDbException.class
+    })
+    public ResponseEntity<ErrorResponse> handleMongoDown(RuntimeException ex, HttpServletRequest req) {
+        log.error("MongoDB unavailable on {} {}", req.getMethod(), req.getRequestURI(), ex);
+        return build(HttpStatus.SERVICE_UNAVAILABLE, "Database is currently unavailable, please try again later", req);
+    }
+
+
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<ErrorResponse> handleDataAccess(DataAccessException ex, HttpServletRequest req) {
+        log.error("Database error on {} {}", req.getMethod(), req.getRequestURI(), ex);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "A database error occurred", req);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

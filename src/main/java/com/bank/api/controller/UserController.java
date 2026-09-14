@@ -44,7 +44,7 @@ public class UserController {
 
     @Operation(summary = "Delete customer", description = "ADMIN only - strictly, no self-delete by USER")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delzete(@PathVariable String id) {
         userService.delete(id);
         return ResponseEntity.noContent().build();
     }

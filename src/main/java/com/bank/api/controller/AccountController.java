@@ -40,7 +40,7 @@ public class AccountController {
     }
 
     @Operation(summary = "List accounts by customer", description = "USER/ADMIN - cannot list others' accounts without ADMIN rights")
-    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.id")
     @GetMapping("/customer/{userId}")
     public ResponseEntity<List<AccountResponse>> listByCustomer(@PathVariable String userId) {
         return ResponseEntity.ok(accountService.listByUser(userId));
@@ -50,8 +50,12 @@ public class AccountController {
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<AccountResponse> updateStatus(@PathVariable String id,
-                                                        @RequestParam AccountStatus status) {
-        return ResponseEntity.ok(accountService.updateStatus(id, status));
+                                                        @RequestParam AccountStatus status,
+                                                        @AuthenticationPrincipal UserPrincipal principal) {
+        boolean isAdmin = principal.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        String requesterId = isAdmin ? null : principal.getId();
+        return ResponseEntity.ok(accountService.updateStatus(id, status, requesterId));
     }
 
     @Operation(summary = "Delete account", description = "ADMIN only")

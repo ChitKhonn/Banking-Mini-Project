@@ -1,18 +1,14 @@
 package com.bank.api.dto.response;
 
 import com.bank.api.enums.AccountStatus;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Data
+@Getter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class AccountResponse {
     private String id;
     private String accountNumber;

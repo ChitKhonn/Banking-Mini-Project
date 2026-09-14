@@ -8,6 +8,7 @@ spring:
   data:
     mongodb:
       uri: mongodb://localhost:27016/banking_db
+      auto-index-creation: true
 
     redis:
       host: localhost

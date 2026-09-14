@@ -2,18 +2,14 @@ package com.bank.api.dto.response;
 
 import com.bank.api.enums.TransactionStatus;
 import com.bank.api.enums.TransactionType;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Data
+@Getter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class TransactionResponse {
     private String id;
     private TransactionType transactionType;

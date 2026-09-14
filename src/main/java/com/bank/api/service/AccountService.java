@@ -5,7 +5,7 @@ import com.bank.api.dto.request.CreateAccountRequest;
 import com.bank.api.dto.response.AccountResponse;
 import com.bank.api.entity.Account;
 import com.bank.api.enums.AccountStatus;
-import com.bank.api.exception.DuplicateResourceException;
+import com.bank.api.exception.DuplicateAccountException;
 import com.bank.api.exception.ResourceNotFoundException;
 import com.bank.api.exception.UnauthorizedAccessException;
 import com.bank.api.repository.AccountRepository;
@@ -31,8 +31,8 @@ public class AccountService {
 
     @CacheEvict(value = RedisConfig.ACCOUNTS_BY_USER_CACHE, key = "#request.userId")
     public AccountResponse create(CreateAccountRequest request) {
-        if (accountRepository.countByUserId(request.getUserId()) > 0) {
-            throw new DuplicateResourceException(
+        if (accountRepository.existsByUserId(request.getUserId())) {
+            throw new DuplicateAccountException(
                     "This customer already has a bank account. Only one account per customer is allowed.");
         }
 
@@ -55,7 +55,6 @@ public class AccountService {
     }
 
     @Cacheable(value = RedisConfig.ACCOUNTS_BY_USER_CACHE, key = "#targetUserId")
-    @PostAuthorize("hasRole('ADMIN') or #targetUserId == authentication.principal.id")
     public List<AccountResponse> listByUser(String targetUserId) {
         return accountRepository.findByUserId(targetUserId).stream()
                 .map(this::toResponse)
@@ -65,12 +64,13 @@ public class AccountService {
     @Caching(evict = {
             @CacheEvict(value = RedisConfig.ACCOUNTS_CACHE, key = "#accountId"),
     })
-    @PostAuthorize("returnObject.userId == authentication.principal.id or hasRole('ADMIN')")
-    public AccountResponse updateStatus(String accountId, AccountStatus newStatus) {
-        Account account = findOrThrow(accountId);
+    public AccountResponse updateStatus(String accountId, AccountStatus newStatus, String requesterId) {
+            Account account = findOrThrow(accountId);
+        if (requesterId != null && !account.getUserId().equals(requesterId)) {
+            throw new UnauthorizedAccessException("Cannot update another user's account");
+        }
         account.setStatus(newStatus);
-        Account saved = accountRepository.save(account);
-        return toResponse(saved);
+        return toResponse(accountRepository.save(account));
     }
 
     @CacheEvict(value = RedisConfig.ACCOUNTS_CACHE, key = "#accountId")

@@ -3,7 +3,6 @@ package com.bank.api.service;
 import com.bank.api.dto.request.UpdateUserRequest;
 import com.bank.api.dto.response.UserResponse;
 import com.bank.api.entity.User;
-import com.bank.api.enums.UserStatus;
 import com.bank.api.exception.EmailDuplicateException;
 import com.bank.api.exception.UserNotFoundException;
 import com.bank.api.repository.UserRepository;
@@ -37,21 +36,19 @@ public class UserService {
     public UserResponse update(String targetUserId, UpdateUserRequest request) {
         User user = findOrThrow(targetUserId);
 
-        if (request.getEmail() != null && !request.getEmail().equals(user.getEmail())
-                && userRepository.existsByEmail(request.getEmail())) {
-            throw new EmailDuplicateException("Email already in use: " + request.getEmail());
-        }
-
         if (request.getName() != null) user.setName(request.getName());
         if (request.getEmail() != null) user.setEmail(request.getEmail());
 
-        return toResponse(userRepository.save(user));
+        try {
+            return toResponse(userRepository.save(user));
+        } catch (org.springframework.dao.DuplicateKeyException ex) {
+            throw new EmailDuplicateException("Email already in use: " + request.getEmail());
+        }
     }
 
     public void delete(String targetUserId) {
-        User user = findOrThrow(targetUserId);
-        user.setStatus(UserStatus.DELETED);
-        userRepository.save(user);
+        long modified = userRepository.softDelete(targetUserId);
+        if (modified == 0) throw new UserNotFoundException("User not found: " + targetUserId);
     }
 
     private User findOrThrow(String userId) {
