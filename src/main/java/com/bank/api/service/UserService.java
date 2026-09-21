@@ -7,6 +7,7 @@ import com.bank.api.exception.EmailDuplicateException;
 import com.bank.api.exception.UserNotFoundException;
 import com.bank.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +32,6 @@ public class UserService {
                 .toList();
     }
 
-    @Transactional
     @PostAuthorize("returnObject.id == authentication.principal.id or hasRole('ADMIN')")
     public UserResponse update(String targetUserId, UpdateUserRequest request) {
         User user = findOrThrow(targetUserId);
@@ -41,7 +41,7 @@ public class UserService {
 
         try {
             return toResponse(userRepository.save(user));
-        } catch (org.springframework.dao.DuplicateKeyException ex) {
+        } catch (DuplicateKeyException ex) {
             throw new EmailDuplicateException("Email already in use: " + request.getEmail());
         }
     }

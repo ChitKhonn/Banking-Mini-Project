@@ -60,6 +60,6 @@ public class TransactionController {
     @GetMapping("/accounts/{accountId}/transactions")
     public ResponseEntity<List<TransactionResponse>> getAccountTransactions(@PathVariable String accountId,
                                                                               @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(transactionService.getAccountTransactions(accountId, principal.getId()));
+        return ResponseEntity.ok(transactionService.getAccountTransactions(accountId, principal.getId(), principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))));
     }
 }

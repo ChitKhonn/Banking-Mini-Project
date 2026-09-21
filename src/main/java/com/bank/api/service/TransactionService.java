@@ -10,7 +10,6 @@ import com.bank.api.enums.TransactionType;
 import com.bank.api.exception.AccountNotFoundException;
 import com.bank.api.exception.ConcurrentUpdateException;
 import com.bank.api.exception.InsufficientBalanceException;
-import com.bank.api.exception.ResourceNotFoundException;
 import com.bank.api.exception.UnauthorizedAccessException;
 import com.bank.api.repository.AccountRepository;
 import com.bank.api.repository.TransactionRepository;
@@ -23,7 +22,6 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -145,13 +143,11 @@ public class TransactionService {
     }
 
     @Cacheable(value = RedisConfig.TRANSACTIONS_CACHE, key = "#accountId")
-    @PostAuthorize("hasRole('ADMIN') or #requesterId == authentication.principal.id")
-    public List<TransactionResponse> getAccountTransactions(String accountId, String requesterId) {
-
+    public List<TransactionResponse> getAccountTransactions(String accountId, String requesterId, boolean isAdmin) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new AccountNotFoundException("Account not found: " + accountId));
 
-        if (!account.getUserId().equals(requesterId)) {
+        if (!isAdmin && !account.getUserId().equals(requesterId)) {
             throw new UnauthorizedAccessException("Cannot access another user's transactions without ADMIN rights");
         }
 
