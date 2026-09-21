@@ -7,7 +7,6 @@ import com.bank.api.entity.Account;
 import com.bank.api.enums.AccountStatus;
 import com.bank.api.exception.DuplicateAccountException;
 import com.bank.api.exception.AccountNotFoundException;
-import com.bank.api.exception.UnauthorizedAccessException;
 import com.bank.api.repository.AccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
@@ -64,20 +63,17 @@ public class AccountService {
     @Caching(evict = {
             @CacheEvict(value = RedisConfig.ACCOUNTS_CACHE, key = "#accountId"),
     })
-    public AccountResponse updateStatus(String accountId, AccountStatus newStatus, String requesterId) {
-            Account account = findOrThrow(accountId);
-        if (requesterId != null && !account.getUserId().equals(requesterId)) {
-            throw new UnauthorizedAccessException("Cannot update another user's account");
-        }
+    @PostAuthorize("returnObject.userId == authentication.principal.id or hasRole('ADMIN')")
+    public AccountResponse updateStatus(String accountId, AccountStatus newStatus) {
+        Account account = findOrThrow(accountId);
         account.setStatus(newStatus);
         return toResponse(accountRepository.save(account));
     }
 
     @CacheEvict(value = RedisConfig.ACCOUNTS_CACHE, key = "#accountId")
     public void delete(String accountId) {
-        Account account = findOrThrow(accountId);
-        account.setStatus(AccountStatus.CLOSED);
-        accountRepository.save(account);
+        long modified = accountRepository.softClose(accountId);
+        if (modified == 0) throw new AccountNotFoundException("Account not found: " + accountId);
     }
 
     Account findOrThrow(String accountId) {

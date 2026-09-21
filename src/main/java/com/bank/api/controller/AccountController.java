@@ -50,12 +50,8 @@ public class AccountController {
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     @PatchMapping("/{id}/status")
     public ResponseEntity<AccountResponse> updateStatus(@PathVariable String id,
-                                                        @RequestParam AccountStatus status,
-                                                        @AuthenticationPrincipal UserPrincipal principal) {
-        boolean isAdmin = principal.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-        String requesterId = isAdmin ? null : principal.getId();
-        return ResponseEntity.ok(accountService.updateStatus(id, status, requesterId));
+                                                        @RequestParam AccountStatus status) {
+        return ResponseEntity.ok(accountService.updateStatus(id, status));
     }
 
     @Operation(summary = "Delete account", description = "ADMIN only")
