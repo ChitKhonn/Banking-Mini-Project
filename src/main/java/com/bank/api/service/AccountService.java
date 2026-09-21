@@ -6,7 +6,7 @@ import com.bank.api.dto.response.AccountResponse;
 import com.bank.api.entity.Account;
 import com.bank.api.enums.AccountStatus;
 import com.bank.api.exception.DuplicateAccountException;
-import com.bank.api.exception.ResourceNotFoundException;
+import com.bank.api.exception.AccountNotFoundException;
 import com.bank.api.exception.UnauthorizedAccessException;
 import com.bank.api.repository.AccountRepository;
 import lombok.RequiredArgsConstructor;
@@ -82,7 +82,7 @@ public class AccountService {
 
     Account findOrThrow(String accountId) {
         return accountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + accountId));
+                .orElseThrow(() -> new AccountNotFoundException("Account not found: " + accountId));
     }
 
     private String generateAccountNumber() {
