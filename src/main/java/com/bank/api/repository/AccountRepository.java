@@ -16,3 +16,4 @@ public interface AccountRepository extends MongoRepository<Account, String> {
     @Query("{ '_id': ?0 }")
     @Update("{ '$set': { 'status': 'CLOSED' } }")
     long softClose(String id);
+}

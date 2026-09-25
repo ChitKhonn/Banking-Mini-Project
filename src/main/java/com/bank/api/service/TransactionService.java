@@ -5,9 +5,11 @@ import com.bank.api.dto.response.TransactionResponse;
 import com.bank.api.entity.Account;
 import com.bank.api.entity.Transaction;
 import com.bank.api.entity.User;
+import com.bank.api.enums.AccountStatus;
 import com.bank.api.enums.TransactionStatus;
 import com.bank.api.enums.TransactionType;
 import com.bank.api.exception.AccountNotFoundException;
+import com.bank.api.exception.AccountNotActiveException;
 import com.bank.api.exception.ConcurrentUpdateException;
 import com.bank.api.exception.InsufficientBalanceException;
 import com.bank.api.exception.UnauthorizedAccessException;
@@ -33,14 +35,14 @@ import java.util.List;
 public class TransactionService {
 
     private final AccountRepository accountRepository;
-    private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
+    private final UserRepository userRepository;
     private final EmailService emailService;
 
     @Retryable(retryFor = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @CacheEvict(value = RedisConfig.ACCOUNTS_CACHE, key = "#accountId")
-    public TransactionResponse deposit(String accountId, BigDecimal amount, String requesterId) {
-        Account account = getOwnedAccount(accountId, requesterId, "Cannot deposit to another user's account");
+    public TransactionResponse deposit(String accountId, BigDecimal amount, User requester) {
+        Account account = getOwnedAccount(accountId, requester.getId(), "Cannot deposit to another user's account");
 
         account.setBalance(account.getBalance().add(amount));
         Account saved = accountRepository.save(account);
@@ -54,21 +56,20 @@ public class TransactionService {
                 .build();
         Transaction savedTxn = transactionRepository.save(txn);
 
-        userRepository.findById(requesterId).ifPresent(owner ->
-                emailService.sendDepositEmail(owner, savedTxn));
+        emailService.sendDepositEmail(requester, savedTxn);
 
         return toResponse(savedTxn);
     }
 
     @Recover
-    public TransactionResponse recover(OptimisticLockingFailureException ex, String accountId, BigDecimal amount, String requesterId) {
+    public TransactionResponse recover(OptimisticLockingFailureException ex, String accountId, BigDecimal amount, User requester) {
         throw new ConcurrentUpdateException("Account was updated concurrently, please retry");
     }
 
     @Retryable(retryFor = OptimisticLockingFailureException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @CacheEvict(value = RedisConfig.ACCOUNTS_CACHE, key = "#accountId")
-    public TransactionResponse withdraw(String accountId, BigDecimal amount, String requesterId) {
-        Account account = getOwnedAccount(accountId, requesterId, "Cannot withdraw from another user's account");
+    public TransactionResponse withdraw(String accountId, BigDecimal amount, User requester) {
+        Account account = getOwnedAccount(accountId, requester.getId(), "Cannot withdraw from another user's account");
 
         if (account.getBalance().compareTo(amount) < 0) {
             throw new InsufficientBalanceException("Insufficient balance for withdrawal");
@@ -86,8 +87,7 @@ public class TransactionService {
                 .build();
         Transaction savedTxn = transactionRepository.save(txn);
 
-        userRepository.findById(requesterId).ifPresent(owner ->
-                emailService.sendWithdrawEmail(owner, savedTxn));
+        emailService.sendWithdrawEmail(requester, savedTxn);
 
         return toResponse(savedTxn);
     }
@@ -98,10 +98,14 @@ public class TransactionService {
             @CacheEvict(value = RedisConfig.ACCOUNTS_CACHE, key = "#fromAccountId"),
             @CacheEvict(value = RedisConfig.ACCOUNTS_CACHE, key = "#toAccountId")
     })
-    public TransactionResponse transfer(String fromAccountId, String toAccountId, BigDecimal amount, String requesterId) {
-        Account fromAccount = getOwnedAccount(fromAccountId, requesterId, "Cannot deduct money from another user's account");
+    public TransactionResponse transfer(String fromAccountId, String toAccountId, BigDecimal amount, User requester) {
+        Account fromAccount = getOwnedAccount(fromAccountId, requester.getId(), "Cannot deduct money from another user's account");
         Account toAccount = accountRepository.findById(toAccountId)
                 .orElseThrow(() -> new AccountNotFoundException("Destination account not found: " + toAccountId));
+
+        if (toAccount.getStatus() != AccountStatus.ACTIVE) {
+            throw new AccountNotActiveException("Destination account is not active");
+        }
 
         if (fromAccount.getBalance().compareTo(amount) < 0) {
             throw new InsufficientBalanceException("Insufficient balance for transfer");
@@ -124,10 +128,9 @@ public class TransactionService {
                 .build();
         Transaction savedTxn = transactionRepository.save(txn);
 
-        User sender = userRepository.findById(savedFrom.getUserId()).orElse(null);
         User receiver = userRepository.findById(savedTo.getUserId()).orElse(null);
-        if (sender != null && receiver != null) {
-            emailService.sendTransferEmails(sender, receiver, savedTxn);
+        if (receiver != null) {
+            emailService.sendTransferEmails(requester, receiver, savedTxn);
         }
 
         return toResponse(savedTxn);
@@ -138,7 +141,7 @@ public class TransactionService {
                                       String fromAccountId,
                                       String toAccountId,
                                       BigDecimal amount,
-                                      String requesterId) {
+                                      User requester) {
         throw new ConcurrentUpdateException("Account was updated concurrently, please retry");
     }
 
@@ -162,6 +165,9 @@ public class TransactionService {
 
         if (!account.getUserId().equals(requesterId)) {
             throw new UnauthorizedAccessException(forbiddenMessage);
+        }
+        if (account.getStatus() != AccountStatus.ACTIVE) {
+            throw new AccountNotActiveException("Account is not active");
         }
         return account;
     }

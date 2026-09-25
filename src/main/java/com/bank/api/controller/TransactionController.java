@@ -31,7 +31,7 @@ public class TransactionController {
     public ResponseEntity<TransactionResponse> deposit(@PathVariable String accountId,
                                                          @Valid @RequestBody AmountRequest request,
                                                          @AuthenticationPrincipal UserPrincipal principal) {
-        TransactionResponse response = transactionService.deposit(accountId, request.getAmount(), principal.getId());
+        TransactionResponse response = transactionService.deposit(accountId, request.getAmount(), principal.getUser());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -41,7 +41,7 @@ public class TransactionController {
     public ResponseEntity<TransactionResponse> withdraw(@PathVariable String accountId,
                                                           @Valid @RequestBody AmountRequest request,
                                                           @AuthenticationPrincipal UserPrincipal principal) {
-        TransactionResponse response = transactionService.withdraw(accountId, request.getAmount(), principal.getId());
+        TransactionResponse response = transactionService.withdraw(accountId, request.getAmount(), principal.getUser());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -51,7 +51,7 @@ public class TransactionController {
     public ResponseEntity<TransactionResponse> transfer(@Valid @RequestBody TransferRequest request,
                                                           @AuthenticationPrincipal UserPrincipal principal) {
         TransactionResponse response = transactionService.transfer(
-                request.getFromAccountId(), request.getToAccountId(), request.getAmount(), principal.getId());
+                request.getFromAccountId(), request.getToAccountId(), request.getAmount(), principal.getUser());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
